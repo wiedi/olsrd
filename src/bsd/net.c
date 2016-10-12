@@ -122,12 +122,18 @@
 #include <netinet/in_var.h>
 #endif /* __APPLE__ */
 
+#if defined __sun
+#include <ifaddrs.h>
+#endif
+
 #include <net/if_dl.h>
 #ifdef SPOOF
 #include <libnet.h>
 #endif /* SPOOF */
 
+#if !defined __sun
 #include <sys/sysctl.h>
+#endif /* __sun */
 
 static int ignore_redir;
 static int send_redir;
@@ -171,6 +177,8 @@ set_sysctl_int(const char *name, int new)
 
   if (sysctl(mib, 4, &old, &len, &new, sizeof(new)) < 0)
     return -1;
+#elif defined __sun
+ /* not implemented yet */
 #else /* __OpenBSD__ */
 
   if (sysctlbyname((const char *)name, &old, &len, &new, sizeof(new)) < 0)
@@ -329,11 +337,13 @@ getsocket(int bufspace, struct interface_olsr *ifp __attribute__ ((unused)))
     return -1;
   }
 
+#if !defined __sun
   if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (char *)&on, sizeof(on)) < 0) {
     perror("SO_REUSEPORT failed");
     close(sock);
     return -1;
   }
+#endif
 
   if (setsockopt(sock, IPPROTO_IP, IP_RECVIF, (char *)&on, sizeof(on)) < 0) {
     perror("IP_RECVIF failed");
@@ -410,11 +420,13 @@ getsocket6(int bufspace, struct interface_olsr *ifp __attribute__ ((unused)))
     return -1;
   }
 
+#if !defined __sun
   if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (char *)&on, sizeof(on)) < 0) {
     perror("SO_REUSEPORT failed");
     close(sock);
     return -1;
   }
+#endif /* defined __sun */
 #ifdef IPV6_RECVPKTINFO
   if (setsockopt(sock, IPPROTO_IPV6, IPV6_RECVPKTINFO, (char *)&on, sizeof(on)) < 0) {
     perror("IPV6_RECVPKTINFO failed");
@@ -512,13 +524,14 @@ join_mcast(struct interface_olsr *ifs, int sock)
 int
 get_ipv6_address(char *ifname, struct sockaddr_in6 *saddr6, struct olsr_ip_prefix *prefix)
 {
+#if !defined __sun
   struct ifaddrs *ifap, *ifa;
   const struct sockaddr_in6 *sin6 = NULL;
   const union olsr_ip_addr *tmp_ip;
   struct in6_ifreq ifr6;
   int found = 0;
   int s6;
-  u_int32_t flags6;
+  uint32_t flags6;
 
   if (getifaddrs(&ifap) != 0) {
     OLSR_PRINTF(3, "get_ipv6_address: getifaddrs() failed.\n");
@@ -560,6 +573,10 @@ get_ipv6_address(char *ifname, struct sockaddr_in6 *saddr6, struct olsr_ip_prefi
     return 1;
 
   return 0;
+#else
+  /* not yet implemented */
+  return 0;
+#endif
 }
 
 /**
@@ -567,7 +584,7 @@ get_ipv6_address(char *ifname, struct sockaddr_in6 *saddr6, struct olsr_ip_prefi
  */
 
 #ifdef SPOOF
-static u_int16_t ip_id = 0;
+static uint16_t ip_id = 0;
 #endif /* SPOOF */
 
 ssize_t
@@ -582,7 +599,7 @@ olsr_sendto(int s, const void *buf, size_t len, int flags __attribute__ ((unused
   unsigned char enet_broadcast[6] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
   int status;
   struct sockaddr_in *to_in = (struct sockaddr_in *)to;
-  u_int32_t destip;
+  uint32_t destip;
   struct interface_olsr *iface;
 
   udp_tag = ip_tag = ether_tag = 0;
@@ -598,7 +615,7 @@ olsr_sendto(int s, const void *buf, size_t len, int flags __attribute__ ((unused
 
   /* initialize IP ID field if necessary */
   if (ip_id == 0) {
-    ip_id = (u_int16_t) (olsr_random() & 0xffff);
+    ip_id = (uint16_t) (olsr_random() & 0xffff);
   }
 
   udp_tag = libnet_build_udp(olsr_cnf->olsrport,        /* src port */

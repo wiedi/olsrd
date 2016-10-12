@@ -96,7 +96,10 @@ add_del_route(const struct rt_entry *rt, int add)
   memset(buff, 0, sizeof(buff));
   memset(&sin4, 0, sizeof(sin4));
 
+#if !defined __sun
   sin4.sin_len = sizeof(sin4);
+#endif /* __sun */
+
   sin4.sin_family = AF_INET;
 
   sin_size = 1 + ((sizeof(struct sockaddr_in) - 1) | (sizeof(long) - 1));
@@ -177,7 +180,11 @@ add_del_route(const struct rt_entry *rt, int add)
 
       /* sdl is "struct sockaddr_dl" */
       sdl = (struct sockaddr_dl *)awalker->ifa_addr;
+#if defined __sun
+      memcpy(walker, sdl, sizeof(struct sockaddr_dl));
+#else
       memcpy(walker, sdl, sdl->sdl_len);
+#endif /* __sun */
       walker += sdl_size;
       rtm->rtm_addrs |= RTA_GATEWAY;
 #ifdef RTF_CLONING
@@ -282,9 +289,11 @@ add_del_route6(const struct rt_entry *rt, int add)
   memset(&sin6, 0, sizeof(sin6));
   memset(&sdl, 0, sizeof(sdl));
 
+#if !defined __sun
   sin6.sin6_len = sizeof(sin6);
-  sin6.sin6_family = AF_INET6;
   sdl.sdl_len = sizeof(sdl);
+#endif /* __sun */
+  sin6.sin6_family = AF_INET6;
   sdl.sdl_family = AF_LINK;
 
   sin_size = 1 + ((sizeof(struct sockaddr_in6) - 1) | (sizeof(long) - 1));

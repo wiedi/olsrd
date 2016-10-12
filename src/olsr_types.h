@@ -51,9 +51,9 @@
 #ifndef _OLSR_TYPES_H
 #define	 _OLSR_TYPES_H
 
-#if !defined __linux__ && !defined __APPLE__ && !defined _WIN32 && !defined __FreeBSD__ && !defined __FreeBSD_kernel__ && !defined __NetBSD__ && !defined __OpenBSD__
+#if !defined __linux__ && !defined __APPLE__ && !defined _WIN32 && !defined __FreeBSD__ && !defined __FreeBSD_kernel__ && !defined __NetBSD__ && !defined __OpenBSD__ && !defined __sun
 #       error "Unsupported system"
-#endif /* !defined __linux__ && !defined __APPLE__ && !defined _WIN32 && !defined __FreeBSD__ && !defined __FreeBSD_kernel__ && !defined __NetBSD__ && !defined __OpenBSD__ */
+#endif /* !defined __linux__ && !defined __APPLE__ && !defined _WIN32 && !defined __FreeBSD__ && !defined __FreeBSD_kernel__ && !defined __NetBSD__ && !defined __OpenBSD__ && !defined __sun */
 
 /* types */
 #ifdef _MSC_VER

@@ -378,9 +378,9 @@ struct olsrd_config {
   int rt_monitor_socket;
 #endif /* __linux__ */
 
-#if defined __FreeBSD__ || defined __FreeBSD_kernel__ || defined __APPLE__ || defined __NetBSD__ || defined __OpenBSD__
+#if defined __FreeBSD__ || defined __FreeBSD_kernel__ || defined __APPLE__ || defined __NetBSD__ || defined __OpenBSD__ || defined __sun
   int rts;                             /* Socket used for route changes on BSDs */
-#endif /* defined __FreeBSD__ || defined __FreeBSD_kernel__ || defined __APPLE__ || defined __NetBSD__ || defined __OpenBSD__ */
+#endif /* defined __FreeBSD__ || defined __FreeBSD_kernel__ || defined __APPLE__ || defined __NetBSD__ || defined __OpenBSD__ || defined __sun */
   float lq_nat_thresh;
 
   TransmitGpsInformation * pud_position;

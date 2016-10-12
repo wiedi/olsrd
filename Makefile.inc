@@ -248,12 +248,16 @@ else
 ifeq ($(OS),win32)
   LDFLAGS +=	-Wl,-export-all-symbols
 else 
+ifneq ($(OS),sunos)
   LDFLAGS +=	-Wl,-export-dynamic 
+endif
 endif
 LDFLAGS +=	-Wl,-rpath,$(LIBDIR)
 endif
-# LDFLAGS for all 
+ifneq ($(OS),sunos)
 LDFLAGS +=	-Wl,--warn-common
+endif
+# LDFLAGS for all 
 # See above at "-ffunction-sections" for an explanation (and why it is disabled).
 #LDOPTS +=	-Wl,--gc-sections
 #LDOPTS +=	-Wl,--print-gc-sections
@@ -380,6 +384,7 @@ help:
 	@echo ' obsd    - OpenBSD                  '
 	@echo ' osx     - Mac OS X                 '
 	@echo ' android - Android                  '
+	@echo ' sunos   - illumos                  '
 	@echo ' ---------------------------------  '
 	@echo ' Example - build for windows:       '
 	@echo ' make OS=win32                      '

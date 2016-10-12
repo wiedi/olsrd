@@ -43,9 +43,9 @@
  *
  */
 
-#if defined __FreeBSD__ || defined __FreeBSD_kernel__ || defined __APPLE__ || defined __NetBSD__ || defined __OpenBSD__
+#if defined __FreeBSD__ || defined __FreeBSD_kernel__ || defined __APPLE__ || defined __NetBSD__ || defined __OpenBSD__ || defined __sun
 #define ifr_netmask ifr_addr
-#endif /* defined __FreeBSD__ || defined __FreeBSD_kernel__ || defined __APPLE__ || defined __NetBSD__ || defined __OpenBSD__ */
+#endif /* defined __FreeBSD__ || defined __FreeBSD_kernel__ || defined __APPLE__ || defined __NetBSD__ || defined __OpenBSD__ || defined __sun */
 
 #include "ifnet.h"
 #include "ipcalc.h"
@@ -77,6 +77,9 @@
 #include <linux/ethtool.h>
 #include <linux/sockios.h>
 #endif /* defined(__linux__) && !defined(__ANDROID__) */
+#if defined(__sun)
+#include <sys/sockio.h> 
+#endif
 
 /**
  * Fix bug in GLIBC, see https://bugzilla.redhat.com/show_bug.cgi?id=635260
