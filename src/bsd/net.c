@@ -178,7 +178,10 @@ set_sysctl_int(const char *name, int new)
   if (sysctl(mib, 4, &old, &len, &new, sizeof(new)) < 0)
     return -1;
 #elif defined __sun
- /* not implemented yet */
+ /* not implemented, sysadmin is expected to have:
+  *  ipadm set-prop -p forwarding=on ipv4
+  *  ipadm set-prop -p forwarding=on ipv6
+  */
 #else /* __OpenBSD__ */
 
   if (sysctlbyname((const char *)name, &old, &len, &new, sizeof(new)) < 0)
@@ -524,14 +527,15 @@ join_mcast(struct interface_olsr *ifs, int sock)
 int
 get_ipv6_address(char *ifname, struct sockaddr_in6 *saddr6, struct olsr_ip_prefix *prefix)
 {
-#if !defined __sun
   struct ifaddrs *ifap, *ifa;
   const struct sockaddr_in6 *sin6 = NULL;
   const union olsr_ip_addr *tmp_ip;
-  struct in6_ifreq ifr6;
   int found = 0;
   int s6;
+#if defined SIOCGIFAFLAG_IN6
+  struct in6_ifreq ifr6;
   uint32_t flags6;
+#endif /* defined SIOCGIFAFLAG_IN6 */
 
   if (getifaddrs(&ifap) != 0) {
     OLSR_PRINTF(3, "get_ipv6_address: getifaddrs() failed.\n");
@@ -543,11 +547,12 @@ get_ipv6_address(char *ifname, struct sockaddr_in6 *saddr6, struct olsr_ip_prefi
       sin6 = (const struct sockaddr_in6 *)(ifa->ifa_addr);
       if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr))
         continue;
-      strscpy(ifr6.ifr_name, ifname, sizeof(ifr6.ifr_name));
       if ((s6 = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
         OLSR_PRINTF(3, "socket(AF_INET6,SOCK_DGRAM)");
         break;
       }
+#if defined SIOCGIFAFLAG_IN6
+      strscpy(ifr6.ifr_name, ifname, sizeof(ifr6.ifr_name));
       ifr6.ifr_addr = *sin6;
       if (ioctl(s6, SIOCGIFAFLAG_IN6, &ifr6) < 0) {
         OLSR_PRINTF(3, "ioctl(SIOCGIFAFLAG_IN6)");
@@ -558,6 +563,7 @@ get_ipv6_address(char *ifname, struct sockaddr_in6 *saddr6, struct olsr_ip_prefi
       flags6 = ifr6.ifr_ifru.ifru_flags6;
       if ((flags6 & IN6_IFF_ANYCAST) != 0)
         continue;
+#endif /* defined SIOCGIFAFLAG_IN6 */
 
       tmp_ip = (const union olsr_ip_addr *) &sin6->sin6_addr;
       if ((prefix == NULL && !IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr))
@@ -573,10 +579,6 @@ get_ipv6_address(char *ifname, struct sockaddr_in6 *saddr6, struct olsr_ip_prefi
     return 1;
 
   return 0;
-#else
-  /* not yet implemented */
-  return 0;
-#endif
 }
 
 /**
