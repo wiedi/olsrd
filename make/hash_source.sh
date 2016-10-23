@@ -59,6 +59,8 @@ if [ "x$osName" = "xDarwin" ] ; then
   md5Command="md5"
 elif [ "x$osName" = "xOpenBSD" ] ; then
   md5Command="md5"
+elif [ "x$osName" = "xSunOS" ] ; then
+  md5Command="digest -a md5"
 fi
 
 
@@ -74,7 +76,7 @@ fi
 
 gitDescriptor="$(git describe --dirty --always 2> /dev/null)"
 
-sourceHash="$(cat $(find . -name *.[ch] | grep -v -E '[/\\]?builddata.c$') | "$md5Command" | awk '{ print $1; }')"
+sourceHash="$(cat $(find . -name *.[ch] | grep -v -E '[/\\]?builddata.c$') | $md5Command | awk '{ print $1; }')"
 hostName="$(hostname)"
 buildDate="$(date +"%Y-%m-%d %H:%M:%S")"
 
