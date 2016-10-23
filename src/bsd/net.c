@@ -696,7 +696,8 @@ olsr_recvfrom(int s, void *buf, size_t len, int flags __attribute__ ((unused)), 
   struct sockaddr_in *sin = (struct sockaddr_in *)from;
   struct sockaddr_in6 *sin6;
   struct in6_addr *iaddr6;
-  struct in6_pktinfo *pkti;
+  struct in6_pktinfo *pkti6;
+  struct in_pktinfo *pkti4;
   struct interface_olsr *ifc;
   char addrstr[INET6_ADDRSTRLEN];
   char iname[IFNAMSIZ];
@@ -725,16 +726,18 @@ olsr_recvfrom(int s, void *buf, size_t len, int flags __attribute__ ((unused)), 
   if (olsr_cnf->ip_version == AF_INET6) {
     for (cm = (struct cmsghdr *)CMSG_FIRSTHDR(&mhdr); cm; cm = (struct cmsghdr *)CMSG_NXTHDR(&mhdr, cm)) {
       if (cm->cmsg_level == IPPROTO_IPV6 && cm->cmsg_type == IPV6_PKTINFO) {
-        pkti = (struct in6_pktinfo *)CMSG_DATA(cm);
-        iaddr6 = &pkti->ipi6_addr;
-        if_indextoname(pkti->ipi6_ifindex, iname);
+        pkti6 = (struct in6_pktinfo *)CMSG_DATA(cm);
+        iaddr6 = &pkti6->ipi6_addr;
+        if_indextoname(pkti6->ipi6_ifindex, iname);
       }
     }
   } else {
-    cm = &cmu.cmsg;
-    sdl = (struct sockaddr_dl *)CMSG_DATA(cm);
-    memset(iname, 0, sizeof(iname));
-    memcpy(iname, sdl->sdl_data, sdl->sdl_nlen);
+    for (cm = (struct cmsghdr *)CMSG_FIRSTHDR(&mhdr); cm; cm = (struct cmsghdr *)CMSG_NXTHDR(&mhdr, cm)) {
+      if (cm->cmsg_level == IPPROTO_IP && cm->cmsg_type == IP_RECVIF) {
+        pkti4 = (struct in_pktinfo *)CMSG_DATA(cm);
+        if_indextoname(pkti4->ipi_ifindex, iname);
+      }
+    }
   }
 
   ifc = if_ifwithsock(s);
