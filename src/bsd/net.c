@@ -692,7 +692,6 @@ olsr_recvfrom(int s, void *buf, size_t len, int flags __attribute__ ((unused)), 
     unsigned char chdr[4096];
   } cmu;
   struct cmsghdr *cm;
-  struct sockaddr_dl *sdl;
   struct sockaddr_in *sin = (struct sockaddr_in *)from;
   struct sockaddr_in6 *sin6;
   struct in6_addr *iaddr6;
