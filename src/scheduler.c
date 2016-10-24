@@ -135,7 +135,7 @@ uint32_t
 olsr_times(void)
 {
 #ifdef __APPLE__
-  uint32_t msec;
+  uint64_t msec;
   struct timeval tv;
 
   if (gettimeofday(&tv, NULL) != 0) {
