@@ -59,19 +59,19 @@
 #include <assert.h>
 #include <time.h>
 
+#ifdef __APPLE__
+#include <mach/clock.h>
+#include <mach/mach.h>
+#endif /* __APPLE__ */
+
 #ifdef _WIN32
 #define close(x) closesocket(x)
 #endif /* _WIN32 */
 
 /* Timer data, global. Externed in scheduler.h */
 uint32_t now_times;                    /* relative time compared to startup (in milliseconds) */
-#ifdef __APPLE__
-struct timeval first_tv;               /* timevalue during startup */
-struct timeval last_tv;                /* timevalue used for last olsr_times() calculation */
-#else
 struct timespec first_tv;              /* timevalue during startup */
 struct timespec last_tv;               /* timevalue used for last olsr_times() calculation */
-#endif /* __APPLE__ */
 
 /* Hashed root of all timers */
 static struct list_node timer_wheel[TIMER_WHEEL_SLOTS];
@@ -134,38 +134,26 @@ static int avl_comp_timer(const void *entry1, const void *entry2) {
 uint32_t
 olsr_times(void)
 {
-#ifdef __APPLE__
-  uint64_t msec;
-  struct timeval tv;
-
-  if (gettimeofday(&tv, NULL) != 0) {
-#else
   uint64_t nsec;
   struct timespec tv;
 
+#ifdef __APPLE__
+  clock_serv_t cclock;
+  mach_timespec_t mts;
+
+  host_get_clock_service(mach_host_self(), SYSTEM_CLOCK, &cclock);
+  clock_get_time(cclock, &mts);
+  mach_port_deallocate(mach_task_self(), cclock);
+  tv.tv_sec = mts.tv_sec;
+  tv.tv_nsec = mts.tv_nsec;
+#else
   if (clock_gettime(CLOCK_MONOTONIC, &tv) != 0) {
-#endif /* __APPLE__ */
     olsr_exit("OS clock is not working, have to shut down OLSR", EXIT_FAILURE);
   }
+#endif /* __APPLE__ */
+
 
   /* test if time jumped backward or more than 60 seconds forward */
-#ifdef __APPLE__
-  if ((tv.tv_sec < last_tv.tv_sec) //
-      || ((tv.tv_sec == last_tv.tv_sec) //
-         && tv.tv_usec < last_tv.tv_usec) //
-      || (tv.tv_sec - last_tv.tv_sec) > 60) {
-
-    OLSR_PRINTF(1, "Time jump (%d.%06d to %d.%06d)\n", //
-        (int32_t) last_tv.tv_sec,//
-        (int32_t) last_tv.tv_usec,//
-        (int32_t) tv.tv_sec,//
-        (int32_t) tv.tv_usec);
-
-    msec = (last_tv.tv_sec - first_tv.tv_sec) * 1000 + (last_tv.tv_usec - first_tv.tv_usec) / 1000;
-    msec++; /* advance time by one millisecond */
-
-#else
-
   if ((tv.tv_sec < last_tv.tv_sec) //
       || ((tv.tv_sec == last_tv.tv_sec) //
           && tv.tv_nsec < last_tv.tv_nsec) //
@@ -179,18 +167,8 @@ olsr_times(void)
 
     nsec = (last_tv.tv_sec - first_tv.tv_sec) * 1000000000 + (last_tv.tv_nsec - first_tv.tv_nsec);
     nsec += 1000000; /* advance time by one millisecond */
-#endif /* __APPLE__ */
 
     first_tv = tv;
-#ifdef __APPLE__
-    first_tv.tv_sec -= (msec / 1000);
-    first_tv.tv_usec -= ((msec % 1000) * 1000);
-
-    if (first_tv.tv_usec < 0) {
-      first_tv.tv_sec--;
-      first_tv.tv_usec += 1000000;
-    }
-#else
     first_tv.tv_sec -= (nsec / 1000000000);
     first_tv.tv_nsec -= (nsec % 1000000000);
 
@@ -198,23 +176,13 @@ olsr_times(void)
       first_tv.tv_sec--;
       first_tv.tv_nsec += 1000000000;
     }
-#endif /* __APPLE__ */
     last_tv = tv;
 
-#ifdef __APPLE__
-    return msec;
-#else
     return (nsec / 1000000);
-#endif /* __APPLE__ */
   }
 
   last_tv = tv;
-  return (uint32_t)((tv.tv_sec - first_tv.tv_sec) * 1000 + //
-#ifdef __APPLE__
-    (tv.tv_usec - first_tv.tv_usec) / 1000);
-#else
-    (tv.tv_nsec - first_tv.tv_nsec) / 1000000);
-#endif /* __APPLE__ */
+  return (uint32_t)((tv.tv_sec - first_tv.tv_sec) * 1000 + (tv.tv_nsec - first_tv.tv_nsec) / 1000000);
 }
 
 /**
@@ -679,12 +647,19 @@ olsr_init_timers(void)
 
   /* Grab initial timestamp */
 #ifdef __APPLE__
-  if (gettimeofday(&first_tv, NULL)) {
+  clock_serv_t cclock;
+  mach_timespec_t mts;
+
+  host_get_clock_service(mach_host_self(), SYSTEM_CLOCK, &cclock);
+  clock_get_time(cclock, &mts);
+  mach_port_deallocate(mach_task_self(), cclock);
+  first_tv.tv_sec = mts.tv_sec;
+  first_tv.tv_nsec = mts.tv_nsec;
 #else
   if (clock_gettime(CLOCK_MONOTONIC, &first_tv)) {
-#endif /* __APPLE__ */
     olsr_exit("OS clock is not working, have to shut down OLSR", EXIT_FAILURE);
   }
+#endif /* __APPLE__ */
   last_tv = first_tv;
   now_times = olsr_times();
 
