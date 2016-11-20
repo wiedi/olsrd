@@ -86,11 +86,13 @@ int lookup_dladdr(const char *ifname, struct sockaddr_dl *sa)
   struct lifreq lifr;
   strncpy(lifr.lifr_name, ifname, sizeof(lifr.lifr_name));
   if (ioctl(s, SIOCGLIFHWADDR, (caddr_t)&lifr) < 0) {
+    close(s);
     fprintf(stderr, "\nInterface %s not found\n", ifname);
     return -1;
   }
 
   memcpy(sa, (struct sockaddr_dl *)&lifr.lifr_addr, sizeof(struct sockaddr_dl));
+  close(s);
   return 0;
 
 #else
