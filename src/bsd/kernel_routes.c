@@ -64,7 +64,60 @@
 #define OLSR_PID getpid ()
 #endif /* _WRS_KERNEL */
 
+#if defined(__sun)
+#include <sys/sockio.h>
+#include <inet/ip.h>
+#endif /* __sun */
+
 static unsigned int seq = 0;
+
+/*
+ * Lookup mac address of interface `ifname`
+ */
+int lookup_dladdr(const char *ifname, struct sockaddr_dl *sa)
+{
+#if defined(__sun)
+  int s = socket(AF_INET, SOCK_DGRAM, 0);
+  if (s == -1) {
+    fprintf(stderr, "\nsocket() in lookup_dladdr failed\n");
+    return -1;
+  }
+
+  struct lifreq lifr;
+  strncpy(lifr.lifr_name, ifname, sizeof(lifr.lifr_name));
+  if (ioctl(s, SIOCGLIFHWADDR, (caddr_t)&lifr) < 0) {
+    fprintf(stderr, "\nInterface %s not found\n", ifname);
+    return -1;
+  }
+
+  memcpy(sa, (struct sockaddr_dl *)&lifr.lifr_addr, sizeof(struct sockaddr_dl));
+  return 0;
+
+#else
+  struct ifaddrs *addrs;
+  struct ifaddrs *awalker;
+
+  if (getifaddrs(&addrs)) {
+    fprintf(stderr, "\ngetifaddrs() failed\n");
+    return -1;
+  }
+
+  for (awalker = addrs; awalker != NULL; awalker = awalker->ifa_next)
+    if (awalker->ifa_addr->sa_family == AF_LINK && strcmp(awalker->ifa_name, ifname) == 0)
+      break;
+
+  if (awalker == NULL) {
+    fprintf(stderr, "\nInterface %s not found\n", ifname);
+    freeifaddrs(addrs);
+    return -1;
+  }
+
+  memcpy(sa, (struct sockaddr_dl *)awalker->ifa_addr, sizeof(struct sockaddr_dl));
+
+  freeifaddrs(addrs);
+  return 0;
+#endif
+}
 
 /*
  * Sends an add or delete message via the routing socket.
@@ -79,9 +132,7 @@ add_del_route(const struct rt_entry *rt, int add)
   unsigned char buff[512];
   unsigned char *walker;               /* points within the buffer */
   struct sockaddr_in sin4;             /* internet style sockaddr */
-  struct sockaddr_dl *sdl;             /* link level sockaddr */
-  struct ifaddrs *addrs;
-  struct ifaddrs *awalker;
+  struct sockaddr_dl sdl;              /* link level sockaddr */
   const struct rt_nexthop *nexthop;
   union olsr_ip_addr mask;             /* netmask as ip address */
   int sin_size, sdl_size;              /* payload of the message */
@@ -159,32 +210,11 @@ add_del_route(const struct rt_entry *rt, int add)
       rtm->rtm_addrs |= RTA_GATEWAY;
     }
     else {
-      /*
-       * Host is directly reachable, so add
-       * the output interface MAC address.
-       */
-      if (getifaddrs(&addrs)) {
-        fprintf(stderr, "\ngetifaddrs() failed\n");
+      if (lookup_dladdr(if_ifwithindex_name(nexthop->iif_index), &sdl) < 0) {
         return -1;
       }
 
-      for (awalker = addrs; awalker != NULL; awalker = awalker->ifa_next)
-        if (awalker->ifa_addr->sa_family == AF_LINK && strcmp(awalker->ifa_name, if_ifwithindex_name(nexthop->iif_index)) == 0)
-          break;
-
-      if (awalker == NULL) {
-        fprintf(stderr, "\nInterface %s not found\n", if_ifwithindex_name(nexthop->iif_index));
-        freeifaddrs(addrs);
-        return -1;
-      }
-
-      /* sdl is "struct sockaddr_dl" */
-      sdl = (struct sockaddr_dl *)awalker->ifa_addr;
-#if defined __sun
-      memcpy(walker, sdl, sizeof(struct sockaddr_dl));
-#else
-      memcpy(walker, sdl, sdl->sdl_len);
-#endif /* __sun */
+      memcpy(walker, &sdl, sizeof(struct sockaddr_dl));
       walker += sdl_size;
       rtm->rtm_addrs |= RTA_GATEWAY;
 #ifdef RTF_CLONING
@@ -193,7 +223,6 @@ add_del_route(const struct rt_entry *rt, int add)
 #ifndef _WRS_KERNEL
       rtm->rtm_flags &= ~RTF_HOST;
 #endif /* _WRS_KERNEL */
-      freeifaddrs(addrs);
     }
 #ifdef _WRS_KERNEL
   }
