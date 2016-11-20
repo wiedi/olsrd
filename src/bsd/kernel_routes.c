@@ -210,6 +210,11 @@ add_del_route(const struct rt_entry *rt, int add)
       rtm->rtm_addrs |= RTA_GATEWAY;
     }
     else {
+     /*
+      * Host is directly reachable, so add
+      * the output interface MAC address.
+      */
+
       if (lookup_dladdr(if_ifwithindex_name(nexthop->iif_index), &sdl) < 0) {
         return -1;
       }
