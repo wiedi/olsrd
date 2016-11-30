@@ -43,7 +43,7 @@
  *
  */
 
-#include "mach_clock_gettime.h"
+#include "clock_gettime.h"
 
 #include <err.h>
 #include <mach/clock.h>
